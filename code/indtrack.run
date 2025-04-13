@@ -1,0 +1,216 @@
+param total_stocks;
+param total_periods;
+param dataset symbolic;
+param dataset2 symbolic;
+param outres symbolic;
+param maxtarg;
+param mintarg default .001;
+param maxstock default 7;
+param market default 1;
+set picks{1..12};
+set picks2{1..12};
+param results{1..12,1..505}default 0;
+param errs{1..12};
+set settemp;
+param choice;
+param mininvest default .0005;
+param maxinvest default .25;
+set pickit;
+set temppick;
+param temp;
+param tempweight{1..505};
+param gencount default 0;
+let market:=1;
+
+if(market==1)then{
+	let dataset:="data\CAC.txt";
+	let dataset2:="data\CACCMV.txt";
+	let outres:= "CAC.res";
+	display "CAC">(outres);
+	let maxinvest:=0.14;
+	let total_stocks:=40;
+	let maxstock:=20;
+}
+else if(market==2)then{
+	let dataset:="data\dax.txt";
+	let dataset2:="data\DAXCMV.txt";
+	let outres:= "DAX.res";
+	display "DAX">(outres);
+	let maxinvest:=0.13;
+	let total_stocks:=39;
+	let maxstock:=20;
+}
+else if(market==3)then{
+	let dataset:="data\ftse.txt";
+	let dataset2:="data\FTSECMV.txt";
+	let outres:= "FTSE.res";
+	display "FTSE">(outres);
+	let maxinvest:=0.1;
+	let total_stocks:=98;
+	let maxinvest:=.1;
+	let maxstock:=30;
+}
+else if(market==4)then{
+	let dataset:="data\s&p.txt";
+	let dataset2:="data\S&PCMV.txt";
+	let outres:= "S&P.res";
+	display "S&P">(outres);
+	let maxinvest:=0.09;
+	let total_stocks:=501;
+	let maxstock:=50;
+}
+
+let total_periods:=522;
+
+
+set assets:=1..total_stocks;
+set rassets;
+let rassets:=assets;
+set time:=0..total_periods ordered;
+set rtime:=time diff {first(time)} ordered;
+set intime ordered;
+set outtime ordered;
+
+let intime:=1..261;
+let outtime:=262..522;
+let intime:= outtime; # calculates year 2 values, to calculate year 1 put this as a comment
+param ordering{1..12};
+param index_price{t in time} default 0;
+param price{a in assets,t in time};
+param capval{a in assets};
+param indret{r in rtime} default 0;
+param return{a in assets,r in rtime};
+
+param targ default 0;
+param improve default 1;
+param bsol;
+param ifga;
+
+for {t in time}{
+	read {a in assets} price[a,t] ,index_price[t]< (dataset); 
+}
+
+read {a in assets}capval[a]< (dataset2);
+	
+for{r in rtime}{
+	if(index_price[r-1]>0)then{
+		let indret[r]:=index_price[r]/index_price[r-1]-1;
+	}
+}
+for{a in assets}{
+	for{r in rtime}{
+		let return[a,r]:=price[a,r]/price[a,r-1]-1;
+	}
+}
+
+#let maxtarg:=max{a in rassets}sum{t in intime}return[a,t]/card(intime)-.001;
+
+model model\indtrack2.mod; # indtrack -> still have variable portfolio return, indtrack2 -> variable portfolio return removed
+display _ampl_elapsed_time>>(outres);
+display _total_solve_time>>(outres);
+
+option cplex_options 'solutionlim=30 timelimit=1000';
+#display price[1,522];
+let ifga:=0;
+if(ifga==1)then{
+	for{pp in 1..12}{
+		let ordering[pp]:=pp;
+		let pickit:={};
+		include script\partcreateparent2.run;
+		let picks2[pp]:=pickit;
+		let temp:=0;
+		for jjloop{jj in 1..pp-1}{
+			let settemp:=picks2[pp] diff picks2[jj];
+			if(card(settemp)==0)then{
+				let temp:=jj;
+				break jjloop;
+			}
+		}
+		if(temp<>0)then{ 
+			#solve;
+			let picks[pp]:=picks[temp];
+			for{ii in picks[pp]}{
+				let results[pp,ii]:=results[temp,ii];
+			}
+			let errs[pp]:=errs[temp];
+			display "duplicate",pp,temp>>(outres);
+		}
+	
+		else{
+			solve;
+			let picks[pp]:={ii in rassets:ifhold[ii]==1};
+			for{ii in picks[pp]}{
+				let results[pp,ii]:=hold[ii];
+			}
+			let errs[pp]:=indtrck;
+#			display "duplicate",pp>>(outres);
+		}
+	}
+	include script\sort.run;
+
+	let bsol:=errs[1];
+
+	display errs;
+	display ordering;
+
+	repeat{
+		let gencount:=gencount+1;
+		for kidloop{pp in 2..6}{
+	
+			let settemp:=picks[pp-1] inter picks[pp];
+			display pp;
+			if(card(settemp)==maxstock)then{
+				display "duplicate",pp>>(outres);
+				
+			}
+			else{
+				let ordering[pp]:=pp;
+				include script\partcreatekid.run; #change script to use different child loop
+				let temp:=0;
+				for{jj in 1..12}{
+					let settemp:=pickit diff picks2[jj];
+					if(card(settemp)==0)then{
+						let temp:=jj;
+					}
+				}
+				let picks2[pp]:=pickit;
+
+				if(temp==0)then {
+					solve;
+					let picks[pp]:={ii in rassets:ifhold[ii]==1};
+					for{ii in picks[pp]}{
+						let results[pp,ii]:=hold[ii];
+					}
+					let errs[pp]:=indtrck;
+				}
+				else{
+					let picks[pp]:=picks[temp];
+					for{ii in picks[pp]}{
+						let results[pp,ii]:=results[temp,ii];
+						display "duplicate",temp>>(outres)
+					}
+				let errs[pp]:=errs[temp];
+					
+				}
+				display pp,errs[pp]>>(outres);			}
+		}
+
+		
+		include script\sort.run;
+		display errs,gencount;
+		display ordering;
+		if(errs[1]>=bsol)then{
+			let improve:=0;
+		}
+		else {
+			let bsol:=errs[1];
+		}
+	}until improve==0;
+	display bsol;
+	display bsol>>(outres);
+}
+else{
+	solve;
+}
+display _ampl_elapsed_time>>(outres);
+display _total_solve_time>>(outres);

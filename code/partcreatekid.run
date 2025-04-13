@@ -1,0 +1,34 @@
+
+/*
+
+let pickit:={};
+let settemp:=picks[pp-1] union picks[pp];
+let pickweight:= max{ii in settemp}(results[ordering[pp],ii], results[ordering[pp-1],ii]);
+repeat{
+	let choice:=pickweight;
+	let temppick:={ii in settemp:(results[ordering[pp],ii]+results[ordering[pp-1],ii])=choice};
+	let pickit:=pickit union temppick;
+	let settemp:=settemp diff temppick;
+}until card(pickit)>=maxstock/2;
+unfix ifhold;
+for{ii in pickit}{
+	fix ifhold[ii]:=1;
+}	
+
+*/
+
+
+
+
+let pickit:={};
+let settemp:=picks[pp-1] union picks[pp];
+repeat{
+	let choice:=max{ii in settemp}(results[ordering[pp],ii]+results[ordering[pp-1],ii]);
+	let temppick:={ii in settemp:(results[ordering[pp],ii]+results[ordering[pp-1],ii])=choice};
+	let pickit:=pickit union temppick;
+	let settemp:=settemp diff temppick;
+}until card(pickit)>=maxstock/2;
+unfix ifhold;
+for{ii in pickit}{
+	fix ifhold[ii]:=1;
+}	

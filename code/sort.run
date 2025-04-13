@@ -1,0 +1,18 @@
+for mloop{m in 2..12}{
+	for nloop{n in m..2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           by -1}{
+		if (errs[n-1]>errs[n]) then{
+			let choice:=errs[n-1];
+			let errs[n-1]:=errs[n];
+			let errs[n]:=choice;
+			let choice:=ordering[n-1];
+			let ordering[n-1]:=ordering[n];
+			let ordering[n]:=choice;
+			let settemp:=picks[n-1];
+			let picks[n-1]:=picks[n];
+			let picks[n]:=settemp;
+		}
+		else
+			break;
+		
+	}
+}

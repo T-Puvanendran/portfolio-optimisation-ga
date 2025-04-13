@@ -1,0 +1,49 @@
+unfix ifhold;
+
+
+
+if(pp==1)then{
+
+	let pickit:={};
+	let settemp:=rassets;
+	repeat{
+		let choice:=max{ii in settemp}capval[ii];
+		let temppick:={ii in settemp:capval[ii]=choice};
+		let pickit:=pickit union temppick;
+		let settemp:=settemp diff temppick;
+	}until card(pickit)>=maxstock/2;
+}
+
+else if(pp==2)then{
+	option relax_integrality 1;
+
+	solve;
+
+	option relax_integrality 0;
+
+	let pickit:={};
+	let settemp:=rassets;
+	repeat{
+		let choice:=max{ii in settemp}hold[ii];
+		let temppick:={ii in settemp:hold[ii]=choice};
+		let pickit:=pickit union temppick;
+		let settemp:=settemp diff temppick;
+	}until card(pickit)>=maxstock/2;
+}
+
+else{
+	let pickit:={};
+	let settemp:=rassets;
+	repeat{
+		let choice:=round(Uniform(1,card(rassets)));
+	
+		let pickit:=pickit union {choice};
+	
+	}until card(pickit)>=maxstock/2;
+}
+
+display pickit,pp,card(rassets);
+
+for{ii in pickit}{
+	fix ifhold[ii]:=1;
+}
